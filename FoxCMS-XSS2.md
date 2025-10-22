@@ -76,7 +76,8 @@ foxui.dialog({
 
 Function point location：
 
-![image-20250922133355180](C:\Users\xmttz\AppData\Roaming\Typora\typora-user-images\image-20250922133355180.png)
+<img width="2878" height="1474" alt="36edf75e-fbcc-4333-8282-28c50adf394f" src="https://github.com/user-attachments/assets/44d5b6a8-bf1b-41f9-9c8f-964428c7c42d" />
+
 
 Request:
 
@@ -117,3 +118,4 @@ Content-Length: 59
 
 {"code":1,"msg":"操作成功","data":"","url":"","wait":1}
 ```
+<img width="2878" height="1624" alt="image" src="https://github.com/user-attachments/assets/5edf4322-dd5b-401c-8bee-2bba40615122" />
