@@ -1,4 +1,4 @@
-FoxCMS - Cross Site Scripting on (src/main/java/com/zhiliao/common/template/TemplateFileServiceImpl.java content parameter) 
+FoxCMS - Cross Site Scripting on (app/admin/view/product/edit.html title parameter)
 
 Vendor Homepage:
 ```
