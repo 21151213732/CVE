@@ -1,4 +1,4 @@
-CicadasCMS - Cross Site Scripting on (src/main/java/com/zhiliao/common/template/TemplateFileServiceImpl.java content parameter) 
+FoxCMS - Cross Site Scripting on (app/admin/view/article/add.html content parameter) 
 
 Vendor Homepage:
 ```
@@ -75,7 +75,8 @@ foxui.dialog({
 
 Function point location：
 
-![image-20250922133355180](C:\Users\xmttz\AppData\Roaming\Typora\typora-user-images\image-20250922133355180.png)
+<img width="2878" height="1614" alt="image" src="https://github.com/user-attachments/assets/f8676d5d-77e2-4515-8604-f64c4c6e6566" />
+
 
 Request:
 
