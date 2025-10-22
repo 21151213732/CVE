@@ -75,7 +75,8 @@ foxui.dialog({
 
 Function point location：
 
-<img width="2878" height="1614" alt="image" src="https://github.com/user-attachments/assets/f8676d5d-77e2-4515-8604-f64c4c6e6566" />
+<img width="2878" height="1492" alt="image" src="https://github.com/user-attachments/assets/39f44e1b-d7ef-4774-b602-5ea3c01f5650" />
+
 
 
 Request:
@@ -117,3 +118,4 @@ Content-Length: 59
 
 {"code":1,"msg":"操作成功","data":"","url":"","wait":1}
 ```
+<img width="2878" height="1614" alt="image" src="https://github.com/user-attachments/assets/d767094c-0986-4303-b930-90ddd775ccb3" />
