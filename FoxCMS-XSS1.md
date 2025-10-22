@@ -75,7 +75,8 @@ foxui.dialog({
 
 Function point location：
 
-<img width="2878" height="1492" alt="image" src="https://github.com/user-attachments/assets/39f44e1b-d7ef-4774-b602-5ea3c01f5650" />
+<img width="2878" height="1488" alt="image" src="https://github.com/user-attachments/assets/cafea264-787a-4828-aafb-9ac9f2070512" />
+
 
 
 
