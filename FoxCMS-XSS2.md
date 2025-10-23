@@ -1,4 +1,4 @@
-FoxCMS - Cross Site Scripting on (app/admin/view/product/edit.html title parameter)
+FoxCMS - Cross Site Scripting on (app/admin/controller/Product.php title parameter)
 
 Vendor Homepage:
 ```
@@ -20,58 +20,149 @@ PHP, Nignx, MySQL
 Affected Page:
 
 ```
-app/admin/view/product/edit.html
+app/admin/controller/Product.php
 ```
 
 On this page, content parameter is vulnerable to Cross Site Scripting
 
 ```
-foxui.dialog({
-	title: '保存',
-	content: '您确定要保存吗',
-	cancelText: '取消',
-	confirmText: '保存',
-	confirm: function(callback) {
-		foxui.loading({text:"发布中"});
-		ajaxR("{:url('edit')}","post",curData,{},function(res) {
-		if (res.code == 1) {
-                    foxui.message({
-                        type: 'success',
-                        text: res.msg
-                    })
-                    if(res.data != ""){
-                        let params = res.data;
-                        if(params.oneId && params.oneId == "key3"){
-                            addDataBuildDetail(params);
-                            singleAllSite(params);
-                        }
-                        foxui.closeLoading();
-                    }
-                    window.location.href=document.referrer;//返回并且刷新
-                } else {
-                    foxui.message({
-                        type: 'warning',
-                        text: res.msg
-                    })
+public function edit()
+    {
+        $param = $this->request->param();
+
+        $bcid = $param['bcid'];
+        View::assign('bcid', $bcid);
+        $ids = explode('_', $bcid);
+        $columnId = $ids[sizeof($ids) - 1]; //栏目id
+        $column = Column::find($columnId);
+        if (!empty($column->tier)) {
+            $bcidStr = '4_' . str_replace(",", "_", $column->tier);
+        } else {
+            $bcidStr = '4';
+        }
+        $breadcrumb = Column::getBreadcrumb($bcidStr);
+        array_push($breadcrumb, ['id' => '', 'title' => '编辑产品', 'name' => DIRECTORY_SEPARATOR . config('adminconfig.admin_path') . '/Product/add', 'url' => 'javascript:void(0)']);
+        View::assign("breadcrumb", $breadcrumb);
+
+        View::assign('id', $param['id']);
+        if (array_key_exists('id', $param)) {
+            $product = \app\common\model\Product::find($param['id']);
+            $articleFieldList = $this->getAttrListAttr($product->article_field);
+            View::assign('articleFieldList', $articleFieldList);
+            View::assign('product', $product);
+        }
+
+        //查询产品参数
+        $productParamList = (new ProductParam())->where("product_id", $param['id'])->order("sort asc")->select(); //产品属性
+        $clang = $this->getMyLang();
+        if ($this->request->isAjax()) {
+
+            //更新产品属性顺序
+            if (array_key_exists("product_attr_ids", $param) && !empty($param['product_attr_ids'])) {
+                $product_attr_ids = $param['product_attr_ids'];
+                $product_attr_idArr = explode(",", $product_attr_ids);
+                $ProductAttrUData = [];
+                foreach ($product_attr_idArr as $key => $product_attr_id) {
+                    array_push($ProductAttrUData, ['sort' => ($key + 1), "id" => $product_attr_id, 'lang' => $clang]);
                 }
-                foxui.closeLoading();
-            },
-            function(res) {
-                foxui.message({
-                    type: 'warning',
-                    text: res.responseJSON.msg
-                })
-                foxui.closeLoading();
-            })
-		callback();
-	},
-	cancel: function() {
-		foxui.message({
-			type: 'warning',
-			text: res.msg
-		})
-	},
-})
+                (new ProductAttr())->saveAll($ProductAttrUData);
+            }
+            unset($param['product_attr_ids']);
+
+            //替换内容
+            if (array_key_exists("content", $param)) {
+                $rdata = $this->replaceContent($param, 'content');
+                if ($rdata["code"] == 0) {
+                    $this->error($rdata['msg']);
+                }
+                $param['content'] = $rdata['content']; //替换内容
+            }
+            $productParams = $param['productParams']; //产品参数
+            $product = new \app\common\model\Product();
+            $param['lang'] = $clang;
+            $product->update($param);
+            $productId = $param["id"];
+
+            $productParamDatas = []; //产品参数
+            $updateProductParamIds = []; //更新的产品参数id
+            foreach ($productParams as $key => $productParam) {
+                $saveData = [];
+                $pid = $productParam["pid"];
+                if ($productParam["is_select"] == 1) { //判断是否下拉
+                    //获取下拉选项拉取默认值
+                    $productParamObj = (new ProductAttrParam())->find($pid);
+                    if ($productParamObj) {
+                        $dfvalueStr = str_replace("\n", ",", $productParamObj->dfvalue);
+
+                        $saveData = [
+                            'product_id' => $productId,
+                            'name' => $productParam["name"],
+                            'dfvalue' => $productParam["dfvalue"],
+                            'type' => $productParamObj->type,
+                            "type_id" => $productParamObj->type_id,
+                            'type_desc' => $productParamObj->type_desc,
+                            'sel_value' => $dfvalueStr,
+                            "attr_param_id" => $pid,
+                            'sort' => $productParam['sort']
+                        ];
+                    }
+                } else {
+                    $saveData = [
+                        'product_id' => $productId,
+                        'name' => $productParam["name"],
+                        'dfvalue' => $productParam["dfvalue"],
+                        'type' => "varchar(255)",
+                        "type_id" => 11,
+                        'type_desc' => "默认输入",
+                        "attr_param_id" => $pid,
+                        'sort' => $productParam['sort']
+                    ];
+                }
+                $id = $productParam["id"];
+                if (!empty($id)) {
+                    $saveData['id'] = intval($id);
+                    array_push($updateProductParamIds, intval($id));
+                    array_push($productParamDatas, $saveData);
+                } else {
+                    array_push($productParamDatas, $saveData);
+                }
+            }
+
+            //查询需要多余参数
+            $delProductParamIds = []; //删除的产品参数id
+            foreach ($productParamList as $key => $pParam) {
+                if (!in_array($pParam["id"], $updateProductParamIds)) {
+                    array_push($delProductParamIds, $pParam["id"]);
+                }
+            }
+
+            if (sizeof($delProductParamIds) > 0) { //删除多余的参数
+                ProductParam::whereIn('id', implode(",", $delProductParamIds))->delete();
+            } else {
+                //                ProductParam::where('product_id', $productId)->delete();//删除之前的参数
+            }
+            if (sizeof($productParamDatas) > 0) { //保存
+                (new ProductParam())->saveAll($productParamDatas);
+            }
+
+            $tags = $param["tags"];
+            if (!empty($tags)) { //文档标签
+                $this->addTags($tags);
+            }
+            xn_add_admin_log("编辑产品", "product", $param['title']); //添加日志
+            $seo = xn_cfg("seo");
+            if ($seo["url_model"] == 3) {
+                $rparam =  ["columnId" => $param["column_id"], "oneId" => "key3", "first" => 1, "column_model" => "product", "id" => $productId];
+                $rparam = array_merge($rparam, $seo);
+                $this->success('操作成功', "", $rparam);
+            } else {
+                $this->success('操作成功');
+            }
+        }
+
+        View::assign('productParamList', $productParamList);
+        return view();
+    }
 ```
 
 Function point location：
