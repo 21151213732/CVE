@@ -1,4 +1,4 @@
-FoxCMS - Cross Site Scripting on (app/admin/view/product/add.html title parameter) 
+FoxCMS - Cross Site Scripting on (app/admin/controller/Product.php title parameter) 
 
 Vendor Homepage:
 ```
@@ -20,58 +20,118 @@ PHP, Nignx, MySQL
 Affected Page:
 
 ```
-app/admin/view/product/add.html
+app/admin/controller/Product.php
 ```
 
 On this page, content parameter is vulnerable to Cross Site Scripting
 
 ```
-foxui.dialog({
-	title: '保存',
-	content: '您确定要保存吗',
-	cancelText: '取消',
-	confirmText: '保存',
-	confirm: function(callback) {
-		foxui.loading({text:"发布中"});
-		ajaxR("{:url('add')}","post",curData,{},function(res) {
-					if (res.code == 1) {
-						foxui.message({
-							type: 'success',
-							text: res.msg
-						})
-						if(res.data != ""){
-							let params = res.data;
-							if(params.oneId && params.oneId == "key3"){
-								addDataBuildDetail(params);
-								singleAllSite(params);
-							}
-							foxui.closeLoading();
-						}
-						window.location.href=document.referrer;//返回并且刷新
-					} else {
-						foxui.message({
-							type: 'warning',
-							text: res.msg
-						})
-					}
-					foxui.closeLoading();
-				},
-				function(res) {
-					foxui.message({
-						type: 'warning',
-						text: res.responseJSON.msg
-					})
-					foxui.closeLoading();
-				})
-		callback();
-	},
-	cancel: function() {
-		foxui.message({
-			type: 'warning',
-			text: res.msg
-		})
-	},
-})
+public function add()
+    {
+        $param = $this->request->param();
+
+        $bcid = $param['bcid'];
+        View::assign('bcid', $bcid);
+        $ids = explode('_', $bcid);
+        $columnId = $ids[sizeof($ids) - 1]; //栏目id
+        $column = Column::find($columnId);
+        if (!empty($column->tier)) {
+            $bcidStr = '4_' . str_replace(",", "_", $column->tier);
+        } else {
+            $bcidStr = '4';
+        }
+        $breadcrumb = Column::getBreadcrumb($bcidStr);
+        array_push($breadcrumb, ['id' => '', 'title' => '添加产品', 'name' => DIRECTORY_SEPARATOR . config('adminconfig.admin_path') . '/Product/add', 'url' => 'javascript:void(0)']);
+        View::assign("breadcrumb", $breadcrumb);
+        $clang = $this->getMyLang();
+        if ($this->request->isAjax()) {
+            //更新产品属性顺序
+            if (array_key_exists("product_attr_ids", $param) && !empty($param['product_attr_ids'])) {
+                $product_attr_ids = $param['product_attr_ids'];
+                $product_attr_idArr = explode(",", $product_attr_ids);
+                $ProductAttrUData = [];
+                foreach ($product_attr_idArr as $key => $product_attr_id) {
+                    array_push($ProductAttrUData, ['sort' => ($key + 1), "id" => $product_attr_id, 'lang' => $clang]);
+                }
+                (new ProductAttr())->saveAll($ProductAttrUData);
+            }
+            unset($param['product_attr_ids']);
+
+            //替换内容
+            if (array_key_exists("content", $param)) {
+                $rdata = $this->replaceContent($param, 'content');
+                if ($rdata["code"] == 0) {
+                    $this->error($rdata['msg']);
+                }
+                $param['content'] = $rdata['content']; //替换内容
+            }
+            $productParams = $param['productParams']; //产品参数
+            $product = new \app\common\model\Product();
+            if (empty($param["release_time"])) {
+                $param["release_time"] = date("Y-m-d H:i:s");
+            }
+            $param['lang'] = $clang;
+            $product->save($param);
+            $productId = $product->id;
+            $productParamDatas = []; //产品参数
+            foreach ($productParams as $key => $productParam) {
+                $pid = $productParam["pid"];
+                if ($productParam["is_select"] == 1) { //判断是否下拉
+                    //获取下拉选项拉取默认值
+                    $productParamObj = (new ProductAttrParam())->find($pid);
+                    if ($productParamObj) {
+                        $dfvalueStr = str_replace("\n", ",", $productParamObj->dfvalue);
+                        array_push(
+                            $productParamDatas,
+                            [
+                                'product_id' => $productId,
+                                'name' => $productParam["name"],
+                                'dfvalue' => $productParam["dfvalue"],
+                                'type' => $productParamObj->type,
+                                "type_id" => $productParamObj->type_id,
+                                'type_desc' => $productParamObj->type_desc,
+                                'sel_value' => $dfvalueStr,
+                                "attr_param_id" => $pid,
+                                'id' => $productParam["id"],
+                                'sort' => $productParam['sort']
+                            ]
+                        );
+                    }
+                } else {
+                    array_push($productParamDatas, [
+                        'product_id' => $productId,
+                        'name' => $productParam["name"],
+                        'dfvalue' => $productParam["dfvalue"],
+                        'type' => "varchar(255)",
+                        "type_id" => 11,
+                        'type_desc' => "默认输入",
+                        "attr_param_id" => $pid,
+                        'id' => $productParam["id"],
+                        'sort' => $productParam['sort']
+                    ]);
+                }
+            }
+            if (sizeof($productParamDatas) > 0) {
+                (new ProductParam())->saveAll($productParamDatas);
+            }
+
+            $tags = $param["tags"];
+            if (!empty($tags)) { //文档标签
+                $this->addTags($tags);
+            }
+            xn_add_admin_log("添加产品", "product", $param['title']); //添加日志
+            $seo = xn_cfg("seo");
+            if ($seo["url_model"] == 3) {
+                $rparam =  ["columnId" => $param["column_id"], "oneId" => "key3", "first" => 1, "column_model" => "product", "id" => $productId];
+                $rparam = array_merge($rparam, $seo);
+                $this->success('操作成功', "", $rparam);
+            } else {
+                $this->success('操作成功');
+            }
+        }
+        View::assign('column', $column);
+        return view();
+    }
 ```
 
 Function point location：
