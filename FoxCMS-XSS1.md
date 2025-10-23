@@ -1,4 +1,4 @@
-FoxCMS - Cross Site Scripting on (app/admin/view/article/add.html content parameter) 
+FoxCMS - Cross Site Scripting on (app/admin/controller/Article.php content parameter) 
 
 Vendor Homepage:
 ```
@@ -26,51 +26,56 @@ app/admin/view/article/add.html
 On this page, content parameter is vulnerable to Cross Site Scripting
 
 ```
-foxui.dialog({
-	title: '保存',
-	content: '您确定要保存吗',
-	cancelText: '取消',
-	confirmText: '保存',
-	confirm: function(callback) {
-	    foxui.loading({text:"发布中"});
-		ajaxR("{:url('add')}","post",curData,{},function(res) {
-					if (res.code == 1) {
-						foxui.message({
-							type: 'success',
-							text: res.msg
-						});
-						if(res.data != ""){
-							let params = res.data;
-							if(params.oneId && params.oneId == "key3"){
-								addDataBuildDetail(params);
-								singleAllSite(params);
-							}
-							foxui.closeLoading();
-						}
-						window.location.href=document.referrer;//返回并且刷新
-					} else {
-						foxui.message({
-							type: 'warning',
-							text: res.msg
-						})
-					}
-					foxui.closeLoading();
-				},
-				function(res) {
-					foxui.message({
-						type: 'warning',
-						text: res.responseJSON.msg
-					})
-					foxui.closeLoading();
-				})
-		callback();
-	},cancel: function() {
-		foxui.message({
-			type: 'warning',
-			text: "取消"
-		})
-	},
-})
+public function add()
+    {
+        $param = $this->request->param();
+
+        $bcid = $param['bcid'];
+        View::assign('bcid', $bcid);
+        $ids = explode('_', $bcid);
+        $columnId = $ids[sizeof($ids) - 1]; //栏目id
+        $column = Column::find($columnId);
+        if (!empty($column->tier)) {
+            $bcidStr = '4_' . str_replace(",", "_", $column->tier);
+        } else {
+            $bcidStr = '4';
+        }
+        $breadcrumb = Column::getBreadcrumb($bcidStr);
+        array_push($breadcrumb, ['id' => '', 'title' => '添加文章', 'name' => DIRECTORY_SEPARATOR . config('adminconfig.admin_path') . '/Article/add', 'url' => 'javascript:void(0)']);
+        View::assign("breadcrumb", $breadcrumb);
+        if ($this->request->isAjax()) {
+            if (array_key_exists("content", $param)) {
+                $rdata = $this->replaceContent($param, 'content'); //替换内容
+                if ($rdata["code"] == 0) {
+                    $this->error($rdata['msg']);
+                }
+                $param['content'] = $rdata['content']; //替换内容
+            }
+            if (empty($param["release_time"])) {
+                $param["release_time"] = date("Y-m-d H:i:s");
+            }
+            if (empty($param["click"])) {
+                $param["click"] = rand(1, 100);
+            }
+            $tags = $param["tags"];
+            if (!empty($tags)) { //文档标签
+                $this->addTags($tags);
+            }
+            $param['lang'] = $this->getMyLang();
+            $article = \app\common\model\Article::create($param);
+            xn_add_admin_log("文章添加", "article", $param['title']); //添加日志
+            $seo = xn_cfg("seo");
+            if ($seo["url_model"] == 3) {
+                $rparam =  ["columnId" => $param["column_id"], "oneId" => "key3", "first" => 1, "column_model" => "article", "id" => $article->id];
+                $rparam = array_merge($rparam, $seo);
+                $this->success('操作成功', "", $rparam);
+            } else {
+                $this->success('操作成功');
+            }
+        }
+        View::assign('column', $column);
+        return view();
+    }
 ```
 
 Function point location：
