@@ -20,7 +20,7 @@ PHP, Nignx, MySQL
 Affected Page:
 
 ```
-app/admin/view/article/add.html
+app/admin/controller/Article.php
 ```
 
 On this page, content parameter is vulnerable to Cross Site Scripting
