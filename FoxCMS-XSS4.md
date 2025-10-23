@@ -1,4 +1,4 @@
-FoxCMS - Cross Site Scripting on (app/admin/view/article/edit.html content parameter) 
+FoxCMS - Cross Site Scripting on (app/admin/controller/Article.php content parameter) 
 
 Vendor Homepage:
 ```
@@ -20,58 +20,77 @@ PHP, Nignx, MySQL
 Affected Page:
 
 ```
-app/admin/view/article/edit.html
+app/admin/controller/Article.php
 ```
 
 On this page, content parameter is vulnerable to Cross Site Scripting
 
 ```
-foxui.dialog({
-	title: '保存',
-	content: '您确定要保存吗',
-	cancelText: '取消',
-	confirmText: '保存',
-	confirm: function(callback) {
-		foxui.loading({text:"发布中"});
-		ajaxR("{:url('edit')}","post",curData,{},function(res) {
-					if (res.code == 1) {
-						foxui.message({
-							type: 'success',
-							text: res.msg
-						})
-						if(res.data != ""){
-							let params = res.data;
-							if(params.oneId && params.oneId == "key3"){
-								addDataBuildDetail(params);
-								singleAllSite(params);
-							}
-							foxui.closeLoading();
-						}
-						window.location.href=document.referrer;//返回并且刷新
-					} else {
-						foxui.message({
-							type: 'warning',
-							text: res.msg
-						})
-					}
-					foxui.closeLoading();
-				},
-				function(res) {
-			foxui.message({
-				type: 'warning',
-				text: res.responseJSON.msg
-			})
-			foxui.closeLoading();
-		})
-		callback();
-	},
-	cancel: function() {
-		foxui.message({
-			type: 'warning',
-			text: res.msg
-		})
-	},
-})
+public function edit()
+    {
+        $param = $this->request->param();
+
+        $bcid = $param['bcid'];
+        View::assign('bcid', $bcid);
+        $ids = explode('_', $bcid);
+        $columnId = $ids[sizeof($ids) - 1]; //栏目id
+        $column = Column::find($columnId);
+        if (!empty($column->tier)) {
+            $bcidStr = '4_' . str_replace(",", "_", $column->tier);
+        } else {
+            $bcidStr = '4';
+        }
+        $breadcrumb = Column::getBreadcrumb($bcidStr);
+        array_push($breadcrumb, ['id' => '', 'title' => '编辑文章', 'name' => DIRECTORY_SEPARATOR . config('adminconfig.admin_path') . '/Article/edit', 'url' => 'javascript:void(0)']);
+        View::assign("breadcrumb", $breadcrumb);
+
+        View::assign('id', $param['id']);
+        if (array_key_exists('id', $param)) {
+            $article = \app\common\model\Article::find($param['id']);
+            $articleFieldList = $this->getAttrListAttr($article->article_field);
+            View::assign('articleFieldList', $articleFieldList);
+            View::assign('article', $article);
+        }
+        if ($this->request->isAjax()) {
+            if (array_key_exists("content", $param)) {
+                $rdata = $this->replaceContent($param, 'content'); //替换内容
+                if ($rdata["code"] == 0) {
+                    $this->error($rdata['msg']);
+                }
+                $param['content'] = $rdata['content']; //替换内容
+            }
+
+            $tags = $param["tags"];
+            if (!empty($tags)) { //文档标签
+                $this->addTags($tags);
+            }
+            $param['lang'] = $this->getMyLang();
+
+            $fc = \app\common\model\Article::field("id,create_time,update_time")->find($param['id']);
+            if ($fc) {
+                if (empty($fc['create_time'])) {
+                    $param['create_time'] = date('Y-m-d H:i:s', time());
+                }
+                if (empty($fc['update_time'])) {
+                    $param['update_time'] = date('Y-m-d H:i:s', time());
+                }
+            } else {
+                $this->error("抱歉没找到修改数据");
+            }
+
+            \app\common\model\Article::update($param);
+            xn_add_admin_log("文章编辑", "article", $param['title']);
+            $seo = xn_cfg("seo");
+            if ($seo["url_model"] == 3) {
+                $rparam =  ["columnId" => $param["column_id"], "oneId" => "key3", "first" => 1, "column_model" => "article", "id" => $param["id"]];
+                $rparam = array_merge($rparam, $seo);
+                $this->success('操作成功', "", $rparam);
+            } else {
+                $this->success('操作成功');
+            }
+        }
+        return view();
+    }
 ```
 
 Function point location：
