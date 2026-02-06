@@ -8,14 +8,13 @@ https://101.42.223.194:6443/
 Version: 
 
 ```
-V1
+Latest version
 ```
 
-Affected Page:
+Environment Setup Fofa dork: body="base/searchInfoWindow_min.css"
 
-```
-https://101.42.223.194:6443/
-```
+<img width="2452" height="1098" alt="a9b4f3ea-950a-4bfd-aeae-5d70ee7377c1" src="https://github.com/user-attachments/assets/b2076ab7-94de-430b-a2c9-51ec5f110e8a" />
+
 
 Request:
 
