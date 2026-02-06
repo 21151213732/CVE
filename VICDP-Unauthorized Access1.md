@@ -15,13 +15,6 @@ Environment Setup Fofa dork: body="base/searchInfoWindow_min.css"
 
 <img width="2452" height="1098" alt="image" src="https://github.com/user-attachments/assets/76aab558-529a-4026-a5b7-de3dec9d2707" />
 
-
-Affected Page:
-
-```
-https://101.42.223.194:6443/
-```
-
 Request:
 
 ```
