@@ -17,11 +17,6 @@ Affected Page:
 https://101.42.223.194:6443/
 ```
 
-Function point location：
-
-<img width="2878" height="1488" alt="image" src="https://github.com/user-attachments/assets/cafea264-787a-4828-aafb-9ac9f2070512" />
-
-
 Request:
 
 ```
@@ -42,4 +37,5 @@ Priority: u=1
 Connection: close
 ```
 
-<img width="2878" height="1614" alt="image" src="https://github.com/user-attachments/assets/d767094c-0986-4303-b930-90ddd775ccb3" />
+<img width="865" height="512" alt="image" src="https://github.com/user-attachments/assets/de7bc8b1-4f3b-4289-9c23-5722c4b6c73d" />
+
